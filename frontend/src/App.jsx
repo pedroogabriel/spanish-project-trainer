@@ -1,61 +1,125 @@
-import React, { useState } from 'react';
-import { login, signup } from './services/auth';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { getCurrentUser, fetchUserData, fetchUserExerciseHistory, updateUserXpAndLevel } from './services/auth';
+import Login from './components/Login';
+import Dashboard from './components/Dashboard';
+import Exercise from './components/Exercise';
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isSignup, setIsSignup] = useState(false);
-  const [error, setError] = useState('');
+  const [userId, setUserId] = useState(null);
+  const [userData, setUserData] = useState(null);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [currentView, setCurrentView] = useState('dashboard');
 
-  // Login ou cadastro real
-  const handleAuth = async (e) => {
-    e.preventDefault();
-    setError('');
+  useEffect(() => {
+    checkAuth();
+  }, []);
+
+  useEffect(() => {
+    if (userId) {
+      loadUserData();
+    }
+  }, [userId]);
+
+  const checkAuth = async () => {
     try {
-      if (isSignup) {
-        await signup(email, password);
-        setIsSignup(false);
-        setError('Cadastro realizado! Faça login.');
-      } else {
-        await login(email, password);
+      const { data } = await getCurrentUser();
+      if (data && data.user) {
         setLoggedIn(true);
+        setUserId(data.user.id);
       }
-    } catch (err) {
-      setError(err.message || 'Erro ao autenticar.');
+    } catch (error) {
+      console.error('Erro ao verificar autenticação:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (!loggedIn) {
+  const loadUserData = async () => {
+    setLoading(true);
+    try {
+      const [userDataResult, historyResult] = await Promise.all([
+        fetchUserData(userId),
+        fetchUserExerciseHistory(userId)
+      ]);
+      setUserData(userDataResult);
+      setHistory(historyResult);
+    } catch (error) {
+      console.error('Erro ao carregar dados do usuário:', error);
+      setUserData(null);
+      setHistory([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = () => {
+    setLoggedIn(true);
+    checkAuth();
+  };
+
+  const handleLogout = () => {
+    setLoggedIn(false);
+    setUserId(null);
+    setUserData(null);
+    setHistory([]);
+    setCurrentView('dashboard');
+  };
+
+  const handleStartExercise = () => {
+    setCurrentView('exercise');
+  };
+
+  const handleExerciseComplete = async (newXp, newNivel) => {
+    try {
+      await updateUserXpAndLevel(userId, newXp, newNivel);
+      await loadUserData();
+      setCurrentView('dashboard');
+    } catch (error) {
+      console.error('Erro ao atualizar dados após exercício:', error);
+    }
+  };
+
+  const handleBackToDashboard = () => {
+    setCurrentView('dashboard');
+  };
+
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <form onSubmit={handleAuth} className="bg-white p-8 rounded shadow-md w-80">
-          <h2 className="text-2xl font-bold mb-4">{isSignup ? 'Cadastro' : 'Login'} Hispano Trainer</h2>
-          <input type="email" placeholder="E-mail" value={email} onChange={e => setEmail(e.target.value)} className="mb-2 w-full p-2 border rounded" required />
-          <input type="password" placeholder="Senha" value={password} onChange={e => setPassword(e.target.value)} className="mb-4 w-full p-2 border rounded" required />
-          {error && <div className="mb-2 text-red-600 text-sm">{error}</div>}
-          <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded mb-2">{isSignup ? 'Cadastrar' : 'Entrar'}</button>
-          <button type="button" className="w-full text-blue-600 underline" onClick={() => { setIsSignup(!isSignup); setError(''); }}>
-            {isSignup ? 'Já tem conta? Faça login' : 'Não tem conta? Cadastre-se'}
-          </button>
-        </form>
+        <div className="text-xl">Carregando...</div>
       </div>
     );
   }
 
-  // Dashboard mock
+  if (!loggedIn) {
+    return <Login onLogin={handleLogin} />;
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-xl mx-auto bg-white rounded shadow p-6">
-        <h1 className="text-3xl font-bold mb-2">Bem-vindo ao Hispano Trainer!</h1>
-        <p className="mb-4">Seu progresso:</p>
-        <div className="flex items-center mb-4">
-          <span className="text-xl font-semibold mr-2">XP:</span>
-          <span className="text-2xl text-green-600 font-bold">500</span>
-        </div>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded">Novo Exercício</button>
+    <Router>
+      <div className="App">
+        {currentView === 'dashboard' && (
+          <Dashboard
+            userData={userData}
+            history={history}
+            onLogout={handleLogout}
+            onStartExercise={handleStartExercise}
+          />
+        )}
+        
+        {currentView === 'exercise' && (
+          <Exercise
+            userId={userId}
+            userData={userData}
+            onBack={handleBackToDashboard}
+            onExerciseComplete={handleExerciseComplete}
+          />
+        )}
       </div>
-    </div>
+    </Router>
   );
 }
 
