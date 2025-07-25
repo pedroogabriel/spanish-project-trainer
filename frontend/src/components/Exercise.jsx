@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { fetchRandomExercise } from '../services/auth';
+import { fetchRandomExercise, fetchFilteredExercise } from '../services/auth';
 import { supabase } from '../services/supabaseClient';
 import stringSimilarity from 'string-similarity';
 
-function Exercise({ userId, userData, onBack, onExerciseComplete }) {
+function Exercise({ userId, userData, onBack, onExerciseComplete, filterType, filterLevel, filterTag }) {
   const [currentExercise, setCurrentExercise] = useState(null);
   const [exerciseAnswer, setExerciseAnswer] = useState('');
   const [exerciseFeedback, setExerciseFeedback] = useState(null);
@@ -18,7 +18,12 @@ function Exercise({ userId, userData, onBack, onExerciseComplete }) {
   const loadExercise = async () => {
     setLoading(true);
     try {
-      const exercise = await fetchRandomExercise();
+      let exercise;
+      if (filterType || filterLevel || filterTag) {
+        exercise = await fetchFilteredExercise({ type: filterType, level: filterLevel, tag: filterTag });
+      } else {
+        exercise = await fetchRandomExercise();
+      }
       setCurrentExercise(exercise);
     } catch (error) {
       console.error('Erro ao carregar exercício:', error);
@@ -99,8 +104,20 @@ function Exercise({ userId, userData, onBack, onExerciseComplete }) {
     );
   }
 
+  if (!currentExercise) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-blue-100 via-white to-green-100">
+        <div className="bg-white rounded-xl shadow-lg p-8 text-center max-w-md">
+          <h2 className="text-2xl font-bold mb-4">Nenhum exercício encontrado</h2>
+          <p className="mb-4">Não há exercícios disponíveis para os filtros selecionados.<br/>Tente outros critérios ou fale com o administrador.</p>
+          <button className="bg-blue-600 text-white px-4 py-2 rounded" onClick={onBack}>Voltar ao Dashboard</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
+    <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-blue-100 via-white to-green-100 p-4 z-0">
       <div className="bg-white rounded shadow-md w-full max-w-2xl p-6 md:p-8">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">Novo Exercício</h2>
