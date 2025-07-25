@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { getCurrentUser, fetchUserData, fetchUserExerciseHistory, updateUserXpAndLevel } from './services/auth';
+import { getCurrentUser, fetchUserData, fetchUserExerciseHistory, updateUserXpAndLevel, fetchFilteredExercise } from './services/auth';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import Exercise from './components/Exercise';
+import ExerciseAdmin from './components/ExerciseAdmin';
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(false);
@@ -12,6 +13,10 @@ function App() {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentView, setCurrentView] = useState('dashboard');
+  const [showFilter, setShowFilter] = useState(false);
+  const [filterType, setFilterType] = useState('');
+  const [filterLevel, setFilterLevel] = useState('');
+  const [filterTag, setFilterTag] = useState('');
 
   useEffect(() => {
     checkAuth();
@@ -72,6 +77,11 @@ function App() {
     setCurrentView('exercise');
   };
 
+  const handleApplyFilter = async () => {
+    setShowFilter(false);
+    setCurrentView('exercise');
+  };
+
   const handleExerciseComplete = async (newXp, newNivel) => {
     try {
       await updateUserXpAndLevel(userId, newXp, newNivel);
@@ -84,6 +94,10 @@ function App() {
 
   const handleBackToDashboard = () => {
     setCurrentView('dashboard');
+  };
+
+  const handleGoToAdmin = () => {
+    setCurrentView('admin');
   };
 
   if (loading) {
@@ -107,6 +121,7 @@ function App() {
             history={history}
             onLogout={handleLogout}
             onStartExercise={handleStartExercise}
+            onGoToAdmin={handleGoToAdmin}
           />
         )}
         
@@ -116,7 +131,13 @@ function App() {
             userData={userData}
             onBack={handleBackToDashboard}
             onExerciseComplete={handleExerciseComplete}
+            filterType={filterType}
+            filterLevel={filterLevel}
+            filterTag={filterTag}
           />
+        )}
+        {currentView === 'admin' && (
+          <ExerciseAdmin onBack={handleBackToDashboard} />
         )}
       </div>
     </Router>

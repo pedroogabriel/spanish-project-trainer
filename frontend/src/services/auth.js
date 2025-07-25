@@ -58,4 +58,28 @@ export async function fetchRandomExercise() {
   if (!data || data.length === 0) return null;
   const randomIndex = Math.floor(Math.random() * data.length);
   return data[randomIndex];
+}
+
+export async function fetchFilteredExercise({ type, level, tag }) {
+  let query = supabase.from('exercises').select('*');
+  if (type) query = query.eq('type', type);
+  if (level) query = query.eq('level', level);
+  if (tag) query = query.contains('tags', [tag]);
+  const { data, error } = await query;
+  if (error) throw error;
+  if (!data || data.length === 0) return null;
+  const randomIndex = Math.floor(Math.random() * data.length);
+  return data[randomIndex];
+}
+
+export async function resetPassword(email) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin + '/reset-password',
+  });
+  if (error) throw error;
+}
+
+export async function updatePassword(newPassword) {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw error;
 } 
